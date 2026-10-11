@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Game Constellations</title>
+<style>
+:root{box-sizing:border-box;color-scheme:dark}*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:#02030a;color:#e6ebff;font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+#c{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:grab}
+#hud{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);padding:12px;display:flex;flex-direction:column;gap:8px;pointer-events:none;z-index:5}
+.glass{pointer-events:auto;background:#0a0e2a99;backdrop-filter:blur(12px);border:1px solid #ffffff22;border-radius:99px}
+.r1{display:flex;gap:8px;flex-wrap:wrap}
+input{flex:1 1 200px;min-width:0;padding:10px 16px;color:#fff;font:inherit;outline:none}
+input:focus{border-color:#ffd77a}
+button{font:inherit;color:#e6ebff;cursor:pointer}
+.b{padding:10px 16px;font-weight:600}.b:hover{background:#ffffff22}
+.gold{background:#ffd77a;color:#1a1200;border-color:#ffd77a}.gold:hover{background:#fff1c4}
+.chips{display:flex;gap:6px;overflow-x:auto;pointer-events:auto;scrollbar-width:none;padding-bottom:2px}
+.chip{flex:none;padding:6px 12px;font-size:12px;border-color:hsl(var(--h) 70% 55% / .6)}
+.chip.on,.chip:hover{background:hsl(var(--h) 75% 40%)}
+#card{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));width:min(400px,calc(100% - 24px));z-index:6;padding:16px 18px;border-radius:20px;background:#080c26ee;border:1px solid hsl(var(--h,230) 70% 60%);box-shadow:0 0 50px hsl(var(--h,230) 90% 55% / .35);transform:translateY(150%);transition:transform .5s cubic-bezier(.2,1.1,.3,1)}
+#card.show{transform:none}
+#card h3{margin:0 24px 6px 0;font-size:20px}
+#card p{margin:10px 0}
+.tag{display:inline-block;font-size:11px;border:1px solid #ffffff33;border-radius:99px;padding:1px 9px;margin:0 4px 0 0}
+.tag.g{background:hsl(var(--h,230) 70% 38%);border-color:transparent}
+#card a{color:#ffd77a;font-size:12px}
+.chip,.b{transition:background .25s,transform .2s}.chip:hover,.b:hover{transform:translateY(-2px)}.b:active{transform:scale(.95)}
+#hud{animation:dn 1.2s 1s both}@keyframes dn{from{opacity:0;transform:translateY(-24px)}}
+#intro h1{animation:ti 2.8s both}#intro p{animation:ti 2.8s .6s both}@keyframes ti{from{opacity:0;letter-spacing:.9em;filter:blur(14px)}}
+.mx{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .45s cubic-bezier(.2,.9,.3,1),opacity .4s}.mx>p{overflow:hidden;margin:0}.mx.open{grid-template-rows:1fr;opacity:1}.mx.open>p{margin:8px 0 6px}.sm{background:none;border:1px solid #ffffff33;border-radius:99px;color:#ffd77a;padding:3px 12px;font-size:12px;margin:0 10px 6px 0;cursor:pointer}.sm:hover{background:#ffffff18}#card{max-height:72vh;overflow:auto}.dsg{font:italic 12px Georgia,serif;color:#ffd77a;opacity:.85;margin-bottom:6px}.nb{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.nb button{background:#ffffff12;border:1px solid #ffffff2a;border-radius:99px;padding:4px 10px;font-size:11px;transition:background .2s}.nb button:hover{background:#ffffff33}
+#cb>*{animation:up .6s both}#cb>*:nth-child(n+2){animation-delay:.08s}#cb>*:nth-child(n+4){animation-delay:.16s}@keyframes up{from{opacity:0;transform:translateY(14px)}}
+#x{position:absolute;right:12px;top:8px;background:none;border:0;font-size:22px}
+#intro{position:fixed;inset:0;z-index:4;display:grid;place-items:center;text-align:center;pointer-events:none;transition:opacity 1.6s}
+#intro.gone{opacity:0}
+#intro h1{margin:0;font-weight:200;font-size:clamp(26px,6vw,64px);letter-spacing:.35em;text-transform:uppercase;text-shadow:0 0 30px #8aa4ff}
+#intro p{opacity:.65;letter-spacing:.2em;text-transform:uppercase;font-size:11px}
+#st{font-family:ui-monospace,monospace;position:fixed;right:14px;bottom:calc(12px + env(safe-area-inset-bottom,0px));font-size:11px;opacity:.55;text-align:right;pointer-events:none}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="intro"><div><h1>Game<br>Constellations</h1><p>a star map of my game library<br>drag · scroll · click a star · / search · R random</p></div></div>
+<div id="hud"><div class="r1"><input id="q" class="glass" type="search" placeholder="Search the sky…" aria-label="Search games"><button class="b glass gold" id="rnd">✦ Random star</button><button class="b glass" id="snd">🔊</button></div><div class="chips" id="chips"></div></div>
+<aside id="card"><button id="x" aria-label="Close">×</button><div id="cb"></div></aside>
+<div id="st"><span id="co"></span><br><span id="sc"></span></div>
+<script>
+const G={SH:['Shooters',10],SU:['Survival',130],RC:['Racing',200],SB:['Sandbox',165],SM:['Simulation',280],HR:['Horror',350],PF:['Platformers',45],ST:['Strategy',95],PZ:['Puzzle & Party',310],RL:['Roguelikes',25],CA:['Idle',60],SP:['Sports',150],'?':['Uncharted',225]};
+const D=`7 Days to Die|SU|Open world,Zombies|Zombie survival where you scavenge, craft and build a base, then try to keep it standing when the horde shows up every seventh night.
+ADVERSE|PF|FPS platformer,Archery|A first-person platformer where your main tool is a bow. 40+ levels over eight worlds, with leaderboards and a score system that rewards clean runs.
+AFTERBURN|SH|Arcade,Air combat|Short arcade dogfights. Put together a plane from 27 combos, play the daily mini-campaign and go after leaderboard scores.
+Allumeria|SB|Voxel,Early Access|An Early Access voxel sandbox with exploring, dungeons and bosses, plus building tools and a full RGB lighting engine.
+Antichamber|PZ|First-person,Mind-bending|A first-person puzzler set in a space where the geometry and the rules don't stay put.
+Aim Hero|SH|Aim trainer,Early Access|A 3D aim trainer for sharpening your shooting in FPS games.
+Ballex|PZ|Action puzzle,Physics|Roll a ball through trap-filled levels while it changes state along the way. Comes with a level editor and Steam Workshop support.
+BeamNG.drive|RC|Soft-body physics,Vehicles|A driving sim known for how convincingly cars crumple.
+Betrix|PZ|Rhythm,Block puzzle|Falling-block puzzle where you stack to the beat of the music.
+Bit Blaster XL|SH|Arcade,Shoot 'em up|A retro arcade shooter in the 80s quarter-muncher style, with score chasing, unlockable ships and leaderboards.
+Blasfemia|HR|First-person,Atmospheric|First-person horror. You're stuck in an ordinary-looking apartment and have to get out before something finds you.
+Blur|RC|Arcade,Power-ups|Arcade racer with real licensed cars and Mario Kart-style power-ups.
+Boomerang Fu|PZ|Party,Local multiplayer|A small-arena brawler where everyone throws boomerangs at each other.
+Bouncing Duck Simulator|SM|Casual,Funny|You bounce rubber ducks around a room with six walls and collect new ducks as you go.
+Brotato|RL|Roguelite,Arena shooter|Arena shooter roguelite where you're a potato holding up to six weapons.
+Call of Duty 4: Modern Warfare|SH|FPS,Campaign|The 2007 Infinity Ward shooter that moved the series into modern warfare.
+Call of Duty: Modern Warfare 3|SH|FPS,Campaign|The 2011 sequel that wraps up the original Modern Warfare story.
+Call of Duty: WWII|SH|FPS,World War II|The 2017 entry that takes the series back to the Second World War.
+Car for Sale Simulator 2023|SM|Cars,Business|Buy cars, fix them up and sell them for more.
+Cataclysm: Dark Days Ahead|SU|Roguelike,Post-apocalyptic|A free, open-source, turn-based survival roguelike set in a world full of monsters.
+CarX Drift Racing Online|RC|Drifting,Multiplayer|Online drifting with a lot of car tuning.
+Chicken Invaders 5: Christmas Edition|SH|Shoot 'em up,Arcade|Space shooter about fending off invading chickens, now with a Christmas theme.
+Chicken Invaders 3|SH|Shoot 'em up,Arcade|Space shooter where you defend Earth from invading chickens.
+Clustertruck|PF|Parkour,Physics|First-person platformer where you jump across the roofs of moving trucks.
+Cookie Clicker|CA|Idle,Incremental|Click a cookie, then buy things that click for you.
+Crossfire West|SH|Free to play,Tactical FPS|Free-to-play online tactical shooter from Smilegate West, with Global Risk and Black List on opposite sides.
+DeadPoly|SU|Zombies,Looter shooter|Low-poly zombie survival looter shooter with base building and crafting, solo or co-op. Early Access.
+DOOM|SH|FPS,Demons|id Software's fast shooter about killing demons.
+DriftForce|RC|Arcade,Endless|Endless arcade racer where you steer anti-gravity drones through generated tracks and grab orbs for score.
+Driving Rogue|RC|Roguelike,Arcade|Arcade driving meets roguelike. Drift through shifting procedural cities, then spend your winnings on car upgrades.
+Drift Type C|RC|Real physics,Open world|A driving game with real physics: no air control, nitrous or brake assist. 50+ stock cars, drifting, rally and time attack in a hybrid-procedural world.
+Dwarf Fortress|ST|Colony sim,Procedural|A very detailed colony sim where you run a settlement of dwarves.
+DYSMANTLE|SU|Action,Crafting|Action survival where you can break almost anything down for materials.
+Ember Knights|RL|Co-op,Action|Co-op action roguelite dungeon crawler.
+Escape from Duckov|SH|Extraction,Top-down|Top-down PvE extraction shooter from Team Soda. Armed ducks raid maps, loot, upgrade a base and get out.
+Far Cry 3|SH|Open world,FPS|Ubisoft's open-world shooter on a dangerous tropical island.
+Final Outpost: Definitive Edition|ST|Base builder,Zombies|Zombie-apocalypse base builder. Assign jobs, craft tools, manage supplies and fortify your town against the hordes.
+Five Nights at Freddy's|HR|Jump scares,Point-and-click|Work the night shift as a security guard while animatronics wander the building.
+FLOW|HR|Psychological,Exploration|A short, free exploration horror game that leaves a lot up to you to interpret. It's on Steam for archival reasons.
+From the Darkness|HR|Psychological,Soviet|First-person psychological horror set in an abandoned Soviet apartment.
+Garry's Mod|SB|Physics,Mods|A physics sandbox with no goals. You make your own fun, and there are mods for everything.
+Geometry Dash|PF|Rhythm,Precision|Rhythm platformer with tough, music-synced levels.
+Getting Over It|PF|Climbing,Rage game|You're stuck in a cauldron, climbing a mountain with a hammer.
+GoreBox|SB|Physics,Sandbox|Physics sandbox where you spawn, move and wreck things with the Reality Crusher. Has a map editor and workshop.
+Granny: Chapter Two|HR|Escape,Stealth|Escape horror where you sneak around Granny and Grandpa's house.
+Grand Theft Auto V|SB|Open world,Crime|Rockstar's open-world crime game with three protagonists in Los Santos.
+Happy Wheels|PF|Physics,Ragdoll|Physics obstacle game with ragdoll characters and lots of vehicles.
+HELPLESS|SU|Adventure,Short|A short, free game about a kid and their sick mother crossing a scorched land where direct sunlight kills. Hide in the shadows and scavenge.
+Human: Fall Flat|PZ|Physics,Co-op|Physics puzzle platformer with floppy, wobbly characters.
+Hydroneer|SM|Mining,Building|Mining sim where you build machines to dig for gold and other resources.
+Hytale|SB|Voxel,Adventure|Voxel sandbox adventure from Hypixel Studios.
+I Am Bread|SM|Physics,Absurd|You're a slice of bread trying to become toast.
+Inertial Drift|RC|Drifting,Twin-stick|Drift racer played with both sticks.
+IMSCARED|HR|Pixel,Psychological|Pixel-art psychological horror that messes with you.
+Internet Cafe Simulator 2|SM|Business,Management|Run an internet cafe and grow it.
+Kiosk|HR|Cooking,Psychological horror|Night-shift cooking horror at a rainy fast-food kiosk, where you find out what happened to the last guy.
+LAN Party Adventures|SM|Retro,Mystery|It's the year 2000. Set up LAN parties in different spots (cables, software, puzzles) while you work out where your friend Pedro went.
+Landscaper Simulator|SM|Cozy,Cleaning|Relaxing hands-on sim where you clean up messy outdoor spaces with a weed whacker, pressure washer and trash vacuum, from suburban yards to parks and graveyards.
+Left 4 Dead 2|SH|Co-op,Zombies|Valve's co-op zombie shooter, with an AI Director that changes every run.
+LIMBO|PF|Puzzle,Noir|Black-and-white puzzle platformer about a boy looking for his sister.
+Lucid Blocks|SB|Voxel,Surreal|A surreal voxel sandbox in endless liminal spaces: plastic cities, grass fields, giant warehouses. Build, craft and fend off strange creatures.
+MADiSON|HR|Psychological,Photography|Psychological horror built around an instant camera.
+Metro: Last Light Redux|SH|Story,Post-apocalyptic|Story-driven shooter in the tunnels of the Moscow Metro.
+Midnight Driver|RC|Street racing,Night|Racing inspired by the golden era of Japanese street racing. Pick iconic cars and take on rivals in downhill or uphill mountain-road battles at night.
+Minecraft: Bedrock Edition|SB|Crafting,Cross-platform|The block-building sandbox in its cross-platform Bedrock version.
+Minecraft Console|SB|Crafting,Blocks|The block-building sandbox in its console edition.
+Minecraft: Java Edition|SB|Crafting,Mods|The block-building sandbox in the original PC Java version.
+MISERY|SU|Co-op,Roguelite|Co-op rogue-lite survival for 1-5 players in a nuclear exclusion zone. Scavenge radioactive ruins, build up your bunker, and avoid anomalies, monsters and bandits.
+Mon Bazou|SM|Cars,Open world|Car repair and trading sim.
+MX Bikes|RC|Motocross,Simulation|Motocross sim with detailed bike physics.
+My Summer Car|SM|Survival,Car building|A hardcore sim about building a car and staying alive in rural Finland.
+Need for Speed|RC|Arcade,Police chases|EA's long-running arcade racing series.
+ODDCORE|SH|Retro FPS,Roguelite|A fast retro FPS roguelite with a five-minute limit per run. Blast through corrupted entities in a liminal nightmare. Early Access.
+Overcooked: Gourmet Edition|PZ|Co-op,Cooking|Co-op cooking game where the kitchens fight back.
+Party Panic|PZ|Party,Minigames|Party game with 30+ quick minigames, a board game mode, a gauntlet and a built-in drinking game option. Online and local.
+PICO PARK|PZ|Co-op,Platformer|Local co-op puzzle platformer where everyone has to reach the goal together.
+Plants vs. Zombies GOTY Edition|ST|Tower defense,Casual|Tower defense where you plant defenders to stop a zombie invasion.
+Project Zomboid|SU|Isometric,Zombies|Isometric zombie survival sandbox where the goal is to last as long as you can.
+Pro Evolution Soccer 2017|SP|Football,Simulation|Konami's football sim.
+Purple Place Classic Games|PZ|Minigames,Casual|Three casual minigames: bake and decorate cakes, match memory cards, and style outfits.
+Raft|SU|Ocean,Crafting|Survive and expand a raft drifting on an endless ocean.
+Ravenfield|SH|Sandbox,Battles|Single-player FPS sandbox with big battles against bots.
+Retimed|SH|Arena shooter,Slow motion|Arena shooter for 1-4 players where time slows into a bubble around anyone in danger, so you can dodge bullets.
+RimWorld|ST|Colony sim,Storyteller|Sci-fi colony sim run by an AI storyteller.
+Rubber Bandits|PZ|Party,Physics brawler|Party brawler for 1-4 players. Steal, smash and grab loot in destructible heist levels with physics-based fighting.
+Sad Satan|HR|Mystery,Creepy|Horror and mystery through dark corridors full of secrets. The name is also tied to a 2015 deep-web horror game that went viral.
+Schedule I|SM|Open world,Crime|Open-world crime business sim where you build a drug empire from nothing.
+Side Effects|HR|Roulette,Dark|A disturbing pill-popping roulette horror game, a bit like Buckshot Roulette meets Big Pharma.
+Streamer Life Simulator|SM|Streaming,Management|Build a career as a streamer.
+Speed Demons 2|RC|Arcade,Highway racing|Arcade highway racing from Radiangames with a side-scrolling chase camera. Race as a Demon or an Enforcer through heavy traffic.
+SpeedRunners|PF|Racing,Multiplayer|Competitive platformer race built around a grappling hook.
+Stardew Valley|SM|Farming,RPG|Farming and life sim where you bring your grandfather's farm back to life.
+Stick Fight: The Game|PZ|Brawler,Physics|Physics-based multiplayer brawler with stick-figure fighters.
+Stormworks|SM|Build,Rescue|Sandbox for building vehicles and doing rescue missions.
+Stranded Deep|SU|Island,Ocean|Survival game where you crash on an island in the middle of a huge ocean.
+Streamer Life Simulator 2|SM|Streaming,Management|The sequel, about running a streaming career.
+Streets of Rogue|RL|Immersive sim,Chaos|A roguelike where you pick a character and play a city's chaos however you like.
+Supermarket Simulator|SM|Management,Retail|Management sim where you run your own supermarket.
+Supplice|SH|Retro FPS,Sci-fi horror|Retro sci-fi horror shooter from Doom modders (Mekworx), aiming for an old-school Doom feel, now with a story.
+SWAT 4: Gold Edition|SH|Tactical,Police|Tactical shooter where you lead a SWAT team.
+Teardown|SB|Voxel,Destruction|Voxel sandbox with fully destructible environments and heist missions.
+Terraria|SB|2D,Crafting|2D sandbox adventure about digging, building, crafting and fighting.
+The Forest|SU|Cannibals,Crafting|Survive in a forest after a plane crash while cannibals watch you.
+The Long Drive|SU|Road trip,Open world|Survival road trip along an endless desert highway.
+Tiny Tanks|PZ|Party,Physics|Party game for up to eight players with toy tanks fighting in fully destructible arenas, lots of modes and modifiers.
+Tools Up! Ultimate Edition|PZ|Co-op,Renovation|Co-op game about renovating rooms under time pressure.
+Total Miner|SB|Voxel,Early Access|Open-world voxel sandbox ported from Xbox 360, made for creative builders, with two action-adventure modes you can jump straight into.
+Truck and Logistics Simulator|SM|Trucks,Co-op|Open-world logistics sim. Load pallets and containers with forklifts and telehandlers, then drive the cargo to the customer. Up to 24 players online.
+Turbo Overkill|SH|Retro FPS,Cyberpunk|Fast retro FPS with a chainsaw leg.
+ULTRAKILL|SH|Retro FPS,Style|Ultra-fast retro FPS where blood from enemies heals you.
+Unturned|SU|Zombies,Blocky|Blocky zombie survival.
+Valheim|SU|Vikings,Co-op|Co-op Viking survival in a procedurally generated world.
+Walls that Watch|HR|Retro,Stealth|Tough retro stealth horror. Use a radar to spot monsters before they spot you while you wake up a strange facility.
+Whispering Fog|HR|Psychological,First-person|First-person psychological horror. A stay at an inherited cabin turns into a nightmare in a forest wrapped in fog.
+Your Friend Wiggles|HR|Psychological,Walking sim|First-person psychological horror walking sim. The virtual pets you forgot in a drawer have woken up, and you have one night to find a way out.
+ZED ZONE|SU|Zombies,2D top-down|Hardcore 2D top-down zombie survival crafting game inspired by Project Zomboid and CDDA, with vehicles and base building. Early Access.
+Zuma Deluxe|PZ|Match-three,Arcade|Shoot colored balls from a frog to clear a rolling chain.`.split('\n').map(l=>{const[n,g,t,d]=l.split('|');return{n,g,t:t?t.split(','):[],d}});
+
+const MORE={
+"7 Days to Die": "Made by The Fun Pimps. The world is fully destructible, so zombies will happily dig through your walls. Solo or with friends.",
+"ADVERSE": "By Loneminded, January 2021. The movement is the best part. Levels have moving platforms and robots, and you chase scores on the leaderboards.",
+"AFTERBURN": "By MorfeoDev. Plays with a mouse or one stick and two buttons. The daily missions change every day, and there's an endless mode too.",
+"Allumeria": "Procedural worlds, odd biomes, deep caves and boss fights. There's also a paint roller that recolors any block.",
+"Antichamber": "By Alexander Bruce, 2013. No combat. You bend impossible rooms and use a gun that picks up and places cubes, and posters on the walls drop cryptic hints.",
+"Aim Hero": "By ProGames Studio. Several training modes and Steam friends leaderboards. It has been in Early Access for years.",
+"Ballex": "By MushREB Games, inspired by Ballance. The ball has durability and temperature. There's a sequel, Ballex².",
+"BeamNG.drive": "By BeamNG GmbH. Every part of a vehicle is its own deformable structure, which is why the crashes look so good. Open maps, scenarios and lots of mods.",
+"Betrix": "By NJ No.1, September 2023. Hard drops land on the beat and your stack builds the melody. You can make levels and share them on the Workshop.",
+"Bit Blaster XL": "By Nickervision Studios. Your ship fires on its own, you steer and boost, and enemies drop ammo. Each ship has its own chiptune track, and the sound effects were made with the developer's mouth.",
+"Blasfemia": "By Nakashima Studios, June 2025. The apartment is handmade and packed with detail while something creeps closer.",
+"Blur": "By Bizarre Creations, 2010. Power-ups like Shunt and Shock, with online and split-screen multiplayer.",
+"Boomerang Fu": "Throw, catch, knock your friends out of the arena. Works locally or online.",
+"Bouncing Duck Simulator": "By NostraDamon, first released in 2017. Three endings, hidden techniques, achievements, and a Duckedex of ducks to fill in.",
+"Brotato": "By Blobfish. Pick a potato with its own stats, survive the waves, and spend materials in the shop in between.",
+"Call of Duty 4: Modern Warfare": "Its multiplayer popularized perks and killstreak rewards, which a lot of later shooters borrowed.",
+"Call of Duty: Modern Warfare 3": "A globe-trotting campaign, plus multiplayer and Spec Ops co-op.",
+"Call of Duty: WWII": "By Sledgehammer Games. The campaign follows Private Ronald Daniels from D-Day. There's also War mode and Nazi Zombies co-op.",
+"Cataclysm: Dark Days Ahead": "Deep crafting, mutations and vehicles. You can play with tiles or ASCII.",
+"Chicken Invaders 5: Christmas Edition": "Part of InterAction studios' series. Dodge falling eggs, grab weapon power-ups and beat the boss chickens.",
+"Chicken Invaders 3": "Same series. Waves of chickens, weapon upgrades and boss fights.",
+"Clustertruck": "By Landfall. The floor is a convoy of driverless trucks, and the levels get faster and messier as you go.",
+"Cookie Clicker": "By Orteil, a browser game since 2013. Grandmas, farms, factories, achievements, a prestige system and seasonal events.",
+"Crossfire West": "CrossFire is a huge series from Smilegate, and the West version serves North America, Europe and Latin America. Modes include Team Deathmatch, Search and Destroy and Free for All.",
+"DeadPoly": "By TFL Games, in Early Access since 2022. Make a character, fortify a building, hunt, fish and customize your guns. Solo, server-based multiplayer and co-op.",
+"DOOM": "The 1993 original helped define the FPS, and the 2016 reboot brought back fast, aggressive combat with glory kills.",
+"DriftForce": "By Greyish Games, April 2019. Four modes, thousands of seed-based tracks, online leaderboards, customizable drones, and a shield you use to slide along walls.",
+"Driving Rogue": "By Gravity Works. The roads and traffic change every run, each car handles differently, and there's a shop between races. Also known as NeuraDrift.",
+"Drift Type C": "By Jonworks Interactive, May 2023 after Early Access. Drifting slows the race timer, and the story has you beat 13 Warriors and 13 Ghosts to free the God of Time.",
+"Dwarf Fortress": "By Bay 12 Games. Dwarves have needs, moods and relationships, and the Steam release added graphics and music.",
+"DYSMANTLE": "Smash objects with tools to collect resources, craft, and explore a dangerous world.",
+"Ember Knights": "Procedurally generated dungeons and unlockable weapons.",
+"Escape from Duckov": "By Team Soda, published by Bilibili in October 2025. A single-player take on extraction shooters, with five stages, 50+ weapons, base building and Workshop support.",
+"Far Cry 3": "By Ubisoft Montreal, 2012. You're Jason Brody, stranded on the Rook Islands with the villain Vaas. Outposts, hunting and crafting.",
+"Final Outpost: Definitive Edition": "By Exabyte Games, PC release 22 May 2025, the expanded version of their mobile hit. It adds trading, difficulty modes, checkpoints, leaderboards and meta-progression.",
+"Five Nights at Freddy's": "Created by Scott Cawthon, 2014. You can only watch cameras and shut doors while the power drains.",
+"FLOW": "Released 28 October 2021. The developers say it isn't a fully fleshed-out project and call it more art than game. Reviews are mixed, and players mention it takes about five minutes and has flashing effects. Several unrelated games share this name, so this follows the Steam horror one.",
+"From the Darkness": "By N4bA, released March 2021. You go into a dead grandfather's old flat to fetch his photo albums. It's one apartment that keeps getting rearranged, and a run takes an hour or two. Contains flashing lights.",
+"Garry's Mod": "Started as a Half-Life 2 mod by Garry Newman and runs on Valve's Source engine. Lua scripting powers modes like Trouble in Terrorist Town and Prop Hunt.",
+"Geometry Dash": "By RobTop Games. It needs precise timing, and there's a level editor with a huge pile of player-made levels.",
+"Getting Over It": "By Bennett Foddy, 2017. A narrator comments on your climb, and one slip can cost you a lot of progress.",
+"GoreBox": "By F² Games. Besides the map editor and workshop sharing, it has cross-platform play and customizable characters.",
+"Granny: Chapter Two": "Sequel to Granny. You have five days to escape with both of them patrolling, so you hide, solve puzzles and listen for noise.",
+"Grand Theft Auto V": "By Rockstar North, 2013. You switch between the three, and GTA Online adds a shared multiplayer world.",
+"Happy Wheels": "By Jim Bonacci. It started in the browser and has a level editor.",
+"HELPLESS": "By Bonne Journée Studio, a student team from Montreal, released 10 March 2023. Your camper breaks down, so you explore on foot while your mom tries to fix it, and you meet a dog along the way. It takes under an hour. Another game on Steam shares the name, so this follows the student one.",
+"Human: Fall Flat": "By No Brakes Games. Dreamlike levels and online co-op for up to eight players.",
+"Hydroneer": "By Fire Hose Games. You build rigs with drills and sluices, find resources and sell them to upgrade your setup.",
+"I Am Bread": "By Bossa Studios. The controls are wobbly on purpose, and you avoid anything that would spoil you.",
+"Inertial Drift": "By Level 91 Entertainment. The left stick steers and the right stick sets your drift angle, with a 90s anime look.",
+"IMSCARED": "It breaks the fourth wall and starts interacting with your computer as if it knows you're there.",
+"Kiosk": "By Vivi. You grill food, pour drinks and make coffee for odd customers. Modes are Story, Endless (with leaderboards) and Relax.",
+"LAN Party Adventures": "By LEAP Game Studios in Lima, Peru, released 18 September 2025. A single-player mix of mystery and tech-setup sim, where every LAN you finish reveals more clues. A sandbox mode with over a hundred items lets you build your own setup. All brands in the game are fictional.",
+"Landscaper Simulator": "By Midnight Game Studios, published by PlayWay, released in August 2026. There are no time limits or pressure, you earn cash and upgrades, and reviewers compare it to PowerWash Simulator.",
+"Left 4 Dead 2": "Released 2009. Four survivors, five campaigns, and Versus, Survival and Realism modes.",
+"LIMBO": "By Playdead, 2010. The monochrome look, the lack of text and the sudden deaths made it an indie landmark.",
+"Lucid Blocks": "By Lucy B. Locks, released 13 March 2026. Infinite procedural worlds, grappling hooks, bombs and blades, and an open-ended crafting system where you can combine almost anything. Launch reviews were Overwhelmingly Positive, and players say it gives you very little in-game guidance.",
+"MADiSON": "By Bloodious Games, 2022. The camera helps you uncover a story about rituals and possession.",
+"Metro: Last Light Redux": "Based on Dmitry Glukhovsky's novels, made by 4A Games. Redux is the enhanced version with better visuals and extra modes.",
+"Midnight Driver": "Several unrelated games share this name. This entry follows the Japanese mountain-road racer by NakteIam, listed on Steam and itch.io.",
+"Minecraft: Bedrock Edition": "The version for Windows, consoles and mobile, with cross-play and an in-game Marketplace.",
+"Minecraft Console": "Creative and survival modes, with split-screen play.",
+"Minecraft: Java Edition": "The original version for Windows, macOS and Linux, known for mods and community servers.",
+"MISERY": "By Platypus Entertainment, published by Ytopia, released 23 October 2025. You play contractors guarding a research institute, heading out each day to scavenge before getting back to the bunker, while keeping an eye on hunger, thirst, radiation and sanity. News reports say it was pulled from Steam in November 2025 after a DMCA claim from the S.T.A.L.K.E.R. studio. It's on Steam again, at around 85% positive.",
+"Mon Bazou": "Fix up vehicles and make money buying and selling them.",
+"MX Bikes": "By Piboso. Multiplayer and active mod support.",
+"My Summer Car": "By Amistech Games. You build a Satsuma bolt by bolt while keeping your character fed, rested and alive.",
+"Need for Speed": "Known for street racing and police chases.",
+"ODDCORE": "By ODDCORP, published by Scarecrow Arts and Korgi Digital, in Early Access since 7 January 2026. When the five minutes run out, the game kills you. 13 weapons, 140+ stackable items, 12 bosses, and a hub with arcade minigames. Cassettes change your run, and you can even import your own music. Steam Deck verified, with flashing effects.",
+"Overcooked: Gourmet Edition": "By Ghost Town Games and Team17. Up to four players cook against the clock in kitchens that change layout or fall apart. The Gourmet Edition bundles the original with its DLC.",
+"Party Panic": "By Everglow Interactive, released August 2017. You play as a Goober, with up to four players locally or online, bots at different difficulties, and boards like The Temple of Goob and Willy's Pizza Party.",
+"PICO PARK": "By TECOPARK. You cooperate to get the key to the goal, with up to eight local players.",
+"Plants vs. Zombies GOTY Edition": "By PopCap, first released in 2009. You gather sun and plant defenders along your lawn, with Adventure, mini-games and Survival modes.",
+"Project Zomboid": "By The Indie Stone. Set in Knox County, Kentucky, with detailed survival systems like injuries, hunger and weather.",
+"Pro Evolution Soccer 2017": "Known for realistic ball physics and modes like Master League and myClub.",
+"Purple Place Classic Games": "By Sam Cohle, released 20 October 2023 for about $2. It's a small, low-budget collection and not the Windows Purble Place. Steam commenters were quick to point that out.",
+"Raft": "By Redbeet Interactive. You collect floating junk with a hook, expand the raft and fend off a shark, with story islands to visit.",
+"Ravenfield": "By SteelRaven7. You lead Eagle or Raven soldiers into large bot battles, with vehicles and Steam Workshop mods.",
+"Retimed": "By Team Maniax, released December 2019. It swings between frantic movement and tense slow motion.",
+"RimWorld": "By Ludeon Studios (Tynan Sylvester). Storytellers like Cassandra and Randy decide which disasters and visitors show up, which shapes each colony's story.",
+"Rubber Bandits": "By Flashbulb. Modes include Heist, Brawl and Snack Attack, with 20 weapons, destructible levels and local or online play.",
+"Schedule I": "Hire employees and expand your operation.",
+"Side Effects": "Released 21 November 2025 by Free Lives (Broforce, Terra Nil). The developers are hirohun, Mr.Pootsley, Jaybooty and Lofar42, and it started out on itch.io. It costs around $5, has co-op and PvP, and is Steam Deck verified.",
+"Speed Demons 2": "By Radiangames, released November 2025. 10 gameplay modes, 67 vehicles and 383 races, with three camera angles and optional motion blur and tilt-shift.",
+"SpeedRunners": "By DoubleDutch Games. Up to four players race, and whoever falls behind off-screen is out.",
+"Stardew Valley": "By ConcernedApe (Eric Barone), 2016. You farm, mine, fish, make friends in town and restore the community center.",
+"Stick Fight: The Game": "By Landfall. Up to four fighters battle while random weapons drop from the sky.",
+"Stormworks": "By Sunfire Software. You build vehicles from parts, program microcontrollers with logic or Lua, and use them on rescue missions.",
+"Stranded Deep": "By Beam Team Games. You crash in the Pacific and survive island to island by crafting, fishing and dodging sharks.",
+"Streets of Rogue": "Procedurally generated cities where you can go for violence, stealth or pure chaos.",
+"Supermarket Simulator": "Stock shelves, set prices, hire staff and expand the store.",
+"Supplice": "By Mekworx, published by Hyperstrange, in Early Access since April 2023. It was reportedly in development for many years and grew from a Doom-style project into a full game.",
+"SWAT 4: Gold Edition": "By Irrational Games, 2005. You lead the team with tactical, mostly non-lethal methods, and the Gold Edition includes The Stetchkov Syndicate expansion.",
+"Teardown": "By Tuxedo Labs. You plan and pull off heists by smashing through walls and building your own paths.",
+"Terraria": "By Re-Logic, 2011. You dig, build and take on bosses in a big world full of biomes and events.",
+"The Forest": "By Endnight Games. After the crash you gather resources, build a base and get through the nights as cannibals stalk the woods.",
+"Tiny Tanks": "By LeadFollow Games. It has 14 game modes that combine with 11 modifiers, a level editor with Workshop support, and local and online play.",
+"Total Miner": "By Studio Forge (formerly Greenstone Games). A port of the Xbox 360 game with 25 built-in texture packs and building tools that make lines, walls, spheres and forests.",
+"Truck and Logistics Simulator": "By Simula Games, published by Aerosoft. It hit Steam Early Access in 2020 and reached version 1.0 on 30 November 2023 on PC and consoles. 30+ vehicles, hundreds of missions, convoys in co-op, and random police speed traps. Steam reviews are Mixed overall.",
+"Turbo Overkill": "By Trigger Happy Interactive. A cyberpunk city, a chainsaw leg and a strong sense of speed.",
+"ULTRAKILL": "By Arsi 'Hakita' Patala. Blood restores your health so you stay aggressive, and a style meter rewards fast, creative kills.",
+"Unturned": "By Nelson Sexton. Free to play, with zombies, crafting and multiplayer.",
+"Valheim": "By Iron Gate AB. Up to ten players explore a Viking afterlife, build bases and beat bosses to move forward.",
+"Walls that Watch": "By billiam. Three main levels, each with its own setting and challenge mode. Clearing every challenge unlocks a secret final mode.",
+"Whispering Fog": "You spend a week at the cabin doing nightly tasks outside while something stalks you.",
+"Your Friend Wiggles": "By BOC Studio, released 27 October 2025. You wake up in a forest and need to find six keys to escape, with retro graphics, randomized environments and a creature hunting you.",
+"ZED ZONE": "By Leven Liu, published by INDIECN, in Early Access since 2023. 40+ technologies, 250 items and 32 firearms, plus special infected like the Blaster and Spitter.",
+"Zuma Deluxe": "By PopCap. You shoot balls from a frog and match three before the chain reaches the skull."
+};
+const $=id=>document.getElementById(id),cv=$('c'),X=cv.getContext('2d');
+let W,H,dp,cam={x:0,y:0,z:1.2},vel={x:0,y:0},fl=null,F='*',Q='',hov=null,sel=null,on=true,ac,drag=null,SH=[],nx=2;const ptrs=new Map(),T0=performance.now()/1000;let zt=1.2,za=null,mx=0,my=0,lastI=0,RP=[],PT=[],MM=null,lastS='',padG;
+let sd=12345;const R=()=>{sd|=0;sd=sd+0x6D2B79F5|0;let t=Math.imul(sd^sd>>>15,1|sd);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const PAL=['#9bb0ff','#cad7ff','#f8f7ff','#fff4ea','#ffd2a1','#ffb36b'],keys=Object.keys(G).filter(k=>D.some(d=>d.g===k)),CL=[],S=[];
+keys.forEach((k,ci)=>{const it=D.filter(d=>d.g===k),n=it.length,a=ci*2.4,r=ci?520*Math.sqrt(ci):0,cx=Math.cos(a)*r,cy=Math.sin(a)*r,lim=55*Math.sqrt(n)+90,P=[{x:cx,y:cy}];
+ for(let t=0;P.length<n&&t<6000;t++){const p=P[R()*P.length|0],an=R()*6.283,d=70+R()*50,q={x:p.x+Math.cos(an)*d,y:p.y+Math.sin(an)*d,p};
+  if(Math.hypot(q.x-cx,q.y-cy)<lim+t*.05&&P.every(o=>Math.hypot(o.x-q.x,o.y-q.y)>58))P.push(q)}
+ const c={k,h:G[k][1],n,la:0,cx:0,cy:0,st:[],ed:[]};
+ P.forEach((q,i)=>{const d=it[i];if(!d)return;const s={d,x:q.x,y:q.y,c,a:1,hv:0,b0:.3+Math.hypot(q.x,q.y)*.0011+R()*.4,ph:R()*6.28,br:k==='?'?.4:.55+R()*.45,col:k==='?'?'#8f9bc4':PAL[R()*6|0]};c.st.push(s);S.push(s);c.cx+=q.x/n;c.cy+=q.y/n;if(q.p)c.ed.push([P.indexOf(q.p),i])});
+ c.st.forEach((s,i)=>{if(R()<.3){let b=-1,bd=108;c.st.forEach((o,j)=>{const d=Math.hypot(o.x-s.x,o.y-s.y);if(j!==i&&d<bd&&!c.ed.some(e=>e.includes(i)&&e.includes(j))){bd=d;b=j}});if(b>=0)c.ed.push([i,b])}});
+ [...c.st].sort((a,b)=>b.br-a.br).forEach((s,i)=>s.g=i<24?'αβγδεζηθικλμνξοπρστυφχψω'[i]:String(i+1));CL.push(c)});
+const BG=[260,220,160].map(n=>Array.from({length:n},()=>({x:R(),y:R(),s:R()*1.1+.3,ph:R()*6.28,c:PAL[R()*6|0]}))),PF=[.04,.1,.2];
+function rs(){dp=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*dp;cv.height=H*dp;X.setTransform(dp,0,0,dp,0,0)}
+addEventListener('resize',rs);rs();
+const fit=()=>Math.max(.1,Math.min(W,H)/4600),clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+let AC,MS,RV,NB,twI,armed=0;
+function aud(){if(AC){if(AC.state==='suspended')AC.resume();return AC}AC=new AudioContext();const cp=AC.createDynamicsCompressor();MS=AC.createGain();MS.gain.value=.9;MS.connect(cp);cp.connect(AC.destination);RV=AC.createConvolver();const n=AC.sampleRate*3,ir=AC.createBuffer(2,n,AC.sampleRate);for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,3)}RV.buffer=ir;const w=AC.createGain();w.gain.value=.5;RV.connect(w);w.connect(cp);NB=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const nd=NB.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;return AC}
+function out(g){g.connect(MS);g.connect(RV)}
+const SCL=[1,9/8,5/4,3/2,5/3,2];
+function qz(f){const o=Math.floor(Math.log2(f/110)),r=f/110/Math.pow(2,o);let b=1,bd=9;SCL.forEach(x=>{const d=Math.abs(Math.log2(r/x));if(d<bd){bd=d;b=x}});return 110*b*Math.pow(2,o)}
+function bell(f,v=.05,d=1.8){const t=AC.currentTime;[[1,1],[2.01,.35],[3.97,.12],[5.4,.05]].forEach(([m,a],i)=>{const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f*m;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v*a,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+d/(1+i*.6));o.connect(g);out(g);o.start(t);o.stop(t+d)})}
+function whoosh(d=1){const t=AC.currentTime,s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();s.buffer=NB;f.type='bandpass';f.Q.value=1.4;f.frequency.setValueAtTime(250,t);f.frequency.exponentialRampToValueAtTime(2600,t+d*.6);f.frequency.exponentialRampToValueAtTime(400,t+d);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.12,t+d*.35);g.gain.linearRampToValueAtTime(0,t+d);s.connect(f);f.connect(g);out(g);s.start(t);s.stop(t+d)}
+function beep(f,d=.12,ty,v=.04,f2){if(!on||!armed)return;try{aud();if(f2)whoosh(Math.min(d,2.2));else bell(qz(f),Math.min(.09,v*1.8),Math.max(.9,d*3))}catch(e){}}
+function pad(){try{aud();if(!padG){padG=AC.createGain();padG.gain.value=0;const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=380;const l=AC.createOscillator(),lg=AC.createGain();l.frequency.value=.07;lg.gain.value=160;l.connect(lg);lg.connect(lp.frequency);l.start();[55,82.4,110.2,164.9].forEach((f,i)=>{const o=AC.createOscillator();o.type='sawtooth';o.frequency.value=f*(1+(i-1.5)*.002);o.connect(lp);o.start()});lp.connect(padG);out(padG);twI=setInterval(()=>{if(on&&!document.hidden)bell(qz(440+Math.random()*900),.012,3.5)},4200)}padG.gain.setTargetAtTime(on?.03:0,AC.currentTime,1.5)}catch(e){}}
+function fly(x,y,z,d=1500){fl={sx:cam.x,sy:cam.y,sz:cam.z,tx:x,ty:y,tz:clamp(z,.1,3.5),t0:performance.now(),d,dip:clamp(Math.hypot(x-cam.x,y-cam.y)*cam.z/(W*4),0,.45)};beep(180,d/1000*.8,'sine',.03,520)}
+const sc=(wx,wy)=>[(wx-cam.x)*cam.z+W/2,(wy-cam.y)*cam.z+H/2];
+function apply(){let m=0;S.forEach(s=>{s.dim=(F!=='*'&&s.d.g!==F)||(Q&&!s.d.n.toLowerCase().includes(Q));s.hit=Q&&!s.dim;if(s.hit)m++});
+ CL.forEach(c=>c.dim=F!=='*'&&c.k!==F);$('sc').textContent=Q?m+' found':S.length+' stars · '+CL.length+' constellations'}
+function fr(ts){const t=ts/1000;
+ if(fl){let u=Math.min(1,(ts-fl.t0)/fl.d);u=u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;cam.x=fl.sx+(fl.tx-fl.sx)*u;cam.y=fl.sy+(fl.ty-fl.sy)*u;cam.z=fl.sz*Math.pow(fl.tz/fl.sz,u)*(1-fl.dip*Math.sin(Math.PI*u));zt=cam.z;if(ts-fl.t0>=fl.d)fl=null}
+ else{if(!drag){cam.x-=vel.x/cam.z;cam.y-=vel.y/cam.z;vel.x*=.93;vel.y*=.93;if(t-lastI>7&&!sel){cam.x+=Math.cos(t*.05)*.3/cam.z;cam.y+=Math.sin(t*.07)*.25/cam.z}}if(za&&Math.abs(zt-cam.z)>.0004){const wx=cam.x+(za.x-W/2)/cam.z,wy=cam.y+(za.y-H/2)/cam.z,nz=cam.z+(zt-cam.z)*.13;cam.x=wx-(za.x-W/2)/nz;cam.y=wy-(za.y-H/2)/nz;cam.z=nz}}
+ const bg=X.createLinearGradient(0,0,W,H);bg.addColorStop(0,'#01020a');bg.addColorStop(.5,'#070a1f');bg.addColorStop(1,'#0b0618');X.globalCompositeOperation='source-over';X.globalAlpha=1;X.fillStyle=bg;X.fillRect(0,0,W,H);
+ X.globalCompositeOperation='lighter';
+ {X.save();X.translate(W/2-cam.x*cam.z*.03-mx*30,H/2-cam.y*cam.z*.03-my*30);X.rotate(-.5);const g=X.createLinearGradient(0,-H*.35,0,H*.35);g.addColorStop(0,'#6a7cff00');g.addColorStop(.5,'#8da0ff1e');g.addColorStop(1,'#c07cff00');X.fillStyle=g;X.fillRect(-W*1.4,-H*.35,W*2.8,H*.7);X.restore()}
+ CL.forEach(c=>{const[x,y]=sc(c.cx,c.cy),r=(260+c.n*9)*cam.z+60,g=X.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,`hsla(${c.h},80%,50%,${c.dim?.03:.16})`);g.addColorStop(1,`hsla(${c.h},80%,40%,0)`);X.fillStyle=g;X.fillRect(x-r,y-r,r*2,r*2)});
+ BG.forEach((L,l)=>L.forEach(b=>{const px=((b.x*W-cam.x*cam.z*PF[l]-mx*(l+1)*20)%W+W)%W,py=((b.y*H-cam.y*cam.z*PF[l]-my*(l+1)*20)%H+H)%H;X.globalAlpha=(.35+.5*Math.sin(t*(1+b.ph%2)+b.ph))*(.4+l*.3);X.fillStyle=b.c;X.fillRect(px,py,b.s*(1+l*.4),b.s*(1+l*.4))}));
+ X.globalAlpha=1;
+ {const[ox,oy]=sc(0,0),k=cam.z;X.save();X.lineWidth=1;X.setLineDash([2,8]);X.strokeStyle='#9bb0ff';X.globalAlpha=.1;[700,1400,2100,2800].forEach(r=>{X.beginPath();X.arc(ox,oy,r*k,0,6.283);X.stroke()});X.setLineDash([]);X.globalAlpha=.06;X.beginPath();for(let i=0;i<24;i++){const a=i*Math.PI/12;X.moveTo(ox,oy);X.lineTo(ox+Math.cos(a)*2800*k,oy+Math.sin(a)*2800*k)}X.stroke();X.globalAlpha=.32;X.fillStyle='#b8c6ff';X.font='10px ui-monospace,monospace';X.textAlign='center';for(let i=0;i<24;i++){const a=i*Math.PI/12;X.fillText(i+'h',ox+Math.cos(a)*2900*k,oy+Math.sin(a)*2900*k+3)}[['+60°',700],['+30°',1400],['0°',2100],['−30°',2800]].forEach(([l,r])=>X.fillText(l,ox+r*k+16,oy-5));X.restore()}
+ CL.forEach(c=>{const act=(hov&&hov.c===c)||(sel&&sel.c===c);c.la+=((c.dim?.04:act?.65:.24+.08*Math.sin(t+c.h))*clamp((t-T0-1)/2.5,0,1)-c.la)*.1;X.lineWidth=act?1.5:1;X.strokeStyle=`hsla(${c.h},85%,75%,${c.la})`;X.beginPath();c.ed.forEach(([a,b])=>{const A=sc(c.st[a].x,c.st[a].y),B=sc(c.st[b].x,c.st[b].y);X.moveTo(A[0],A[1]);X.lineTo(B[0],B[1])});X.stroke();
+ if(!c.dim){X.fillStyle='#fff';c.ed.forEach(([a,b],i)=>{const A=sc(c.st[a].x,c.st[a].y),B=sc(c.st[b].x,c.st[b].y),u=(t*.5+i*.37)%1;X.globalAlpha=(act?.9:.35)*clamp(c.la*4,0,1);X.beginPath();X.arc(A[0]+(B[0]-A[0])*u,A[1]+(B[1]-A[1])*u,act?2.3:1.5,0,6.283);X.fill()});X.globalAlpha=1}});
+ const z=cam.z,vis=[];
+ S.forEach(s=>{const[x,y]=sc(s.x,s.y);if(x<-60||y<-60||x>W+60||y>H+60)return;s.sx=x;s.sy=y;vis.push(s);
+  const hv=s===hov||s===sel,tw=.8+.2*Math.sin(t*1.7+s.ph*3),ag=clamp((t-T0-s.b0)/1,0,1),e=ag<1?Math.max(0,1+2.7*Math.pow(ag-1,3)+1.7*Math.pow(ag-1,2)):1,r=(1.6+s.br*2.2)*(.55+Math.min(z,2)*.6)*(1+.5*s.hv)*e;s.hv+=((hv?1:0)-s.hv)*.15;s.a+=((s.dim?.1:1)-s.a)*.1;
+  X.globalAlpha=s.a*tw*ag;const g=X.createRadialGradient(x,y,0,x,y,r*7);g.addColorStop(0,'#fff');g.addColorStop(.12,s.col);g.addColorStop(.4,s.col+'55');g.addColorStop(1,s.col+'00');X.fillStyle=g;X.beginPath();X.arc(x,y,r*7,0,6.283);X.fill();
+  if((s.br>.8||hv)&&!s.dim){X.strokeStyle=s.col;X.lineWidth=.8;X.beginPath();const L=r*(hv?9:5);X.moveTo(x-L,y);X.lineTo(x+L,y);X.moveTo(x,y-L);X.lineTo(x,y+L);X.stroke()}
+  if(s.hit){X.globalAlpha=1;X.strokeStyle='#ffd77a';X.lineWidth=1.5;X.beginPath();X.arc(x,y,16+4*Math.sin(t*4),0,6.283);X.stroke()}});
+ RP=RP.filter(r=>t-r.t<1.6);RP.forEach(r=>{const a=t-r.t,[x,y]=sc(r.x,r.y);X.globalAlpha=1-a/1.6;X.strokeStyle=`hsl(${r.h} 100% 80%)`;X.lineWidth=2.5*(1-a/1.6)+.5;X.beginPath();X.arc(x,y,12+a*Math.sqrt(cam.z)*170,0,6.283);X.stroke()});X.globalAlpha=1;
+X.globalCompositeOperation='source-over';X.textAlign='center';
+ try{X.letterSpacing='0px'}catch(e){}
+ vis.forEach(s=>{if(!s.dim&&z>.3&&'αβγ'.includes(s.g)){X.globalAlpha=.6;X.fillStyle=s.col;X.font='italic 13px Georgia,serif';X.fillText(s.g,s.sx+13,s.sy-9)}});
+ vis.forEach(s=>{if(s.dim||!(z>.6||s===hov||s===sel||s.hit))return;X.globalAlpha=s===hov||s===sel||s.hit?1:clamp((z-.55)*3,0,.8);X.fillStyle='#fff';X.font=(s===hov?'600 13px':'11px')+' system-ui';X.fillText(s.d.n,s.sx,s.sy+22)});
+ if(z<1.5){try{X.letterSpacing=z<.5?'10px':'6px'}catch(e){}CL.forEach(c=>{const[x,y]=sc(c.cx,c.cy);X.globalAlpha=clamp(1.7-z,0,1)*(c.dim?.1:.55);X.fillStyle=`hsl(${c.h} 85% 80%)`;X.font=`600 ${z<.5?22:14}px system-ui`;X.fillText(G[c.k][0].toUpperCase(),x,y-(55*Math.sqrt(c.n)+40)*z)})}
+ if(sel){const[x,y]=sc(sel.x,sel.y);X.globalAlpha=.85;X.strokeStyle='#ffd77a';X.lineWidth=1.3;for(let i=0;i<4;i++){const a=t*1.2+i*1.5708;X.beginPath();X.arc(x,y,26+3*Math.sin(t*3),a,a+.9);X.stroke()}}
+ X.globalCompositeOperation='lighter';PT=PT.filter(p=>p.l>0);PT.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.l-=.025;X.globalAlpha=p.l*.7;X.fillStyle='#bcd0ff';X.beginPath();X.arc(p.x,p.y,1.6*p.l+.3,0,6.283);X.fill()});
+ if(t>nx){nx=t+2+R()*5;const a=.3+R()*.5,v=700+R()*500;SH.push({x:R()*W,y:R()*H*.5,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:1})}
+ X.globalCompositeOperation='lighter';SH=SH.filter(s=>s.l>0);SH.forEach(s=>{s.x+=s.vx/60;s.y+=s.vy/60;s.l-=.02;const g=X.createLinearGradient(s.x,s.y,s.x-s.vx*.18,s.y-s.vy*.18);g.addColorStop(0,'#fff');g.addColorStop(1,'#fff0');X.globalAlpha=s.l;X.strokeStyle=g;X.lineWidth=2;X.beginPath();X.moveTo(s.x,s.y);X.lineTo(s.x-s.vx*.18,s.y-s.vy*.18);X.stroke()});
+X.globalCompositeOperation='source-over';{const mr=58,px=W-mr-16,py=H-mr-56,k=mr/3000;MM={x:px,y:py,r:mr};X.globalAlpha=1;X.fillStyle='#050816cc';X.strokeStyle='#ffffff30';X.lineWidth=1;X.beginPath();X.arc(px,py,mr,0,6.283);X.fill();X.stroke();X.save();X.clip();CL.forEach(c=>{X.fillStyle=`hsl(${c.h} 90% 70%)`;X.globalAlpha=c.dim?.2:.9;X.beginPath();X.arc(px+c.cx*k,py+c.cy*k,2.5,0,6.283);X.fill()});X.globalAlpha=1;X.strokeStyle='#ffd77a';X.strokeRect(px+(cam.x-W/2/cam.z)*k,py+(cam.y-H/2/cam.z)*k,W/cam.z*k,H/cam.z*k);X.restore()}
+ {const a=((Math.atan2(cam.y,cam.x)/6.2832)+1)%1,d=Math.round(90-Math.hypot(cam.x,cam.y)/2800*180),s2=`RA ${String(Math.floor(a*24)).padStart(2,'0')}h ${String(Math.floor(a*1440%60)).padStart(2,'0')}m · DEC ${d<0?'−':'+'}${Math.abs(d)}° · ×${cam.z.toFixed(2)}`;if(s2!==lastS){lastS=s2;$('co').textContent=s2}}
+ requestAnimationFrame(fr)}
+function zoomAt(px,py,k){const wx=cam.x+(px-W/2)/cam.z,wy=cam.y+(py-H/2)/cam.z,nz=clamp(cam.z*k,.1,3.5);cam.x=wx-(px-W/2)/nz;cam.y=wy-(py-H/2)/nz;cam.z=zt=nz}
+function pick(px,py){let b=null,bd=24;S.forEach(s=>{if(s.dim||s.sx==null)return;const d=Math.hypot(s.sx-px,s.sy-py);if(d<bd){bd=d;b=s}});return b}
+function intro(){armed=1;$('intro').classList.add('gone');lastI=performance.now()/1000;pad()}
+cv.onpointerdown=e=>{if(MM&&Math.hypot(e.clientX-MM.x,e.clientY-MM.y)<MM.r){const k=MM.r/3000;intro();fly((e.clientX-MM.x)/k,(e.clientY-MM.y)/k,cam.z,1400);return}cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});drag={m:0};fl=null;vel={x:0,y:0};intro();cv.style.cursor='grabbing'};
+cv.onpointermove=e=>{if(!ptrs.size&&PT.length<90&&Math.random()<.5)PT.push({x:e.clientX,y:e.clientY,vx:(Math.random()-.5)*.7,vy:Math.random()*.5,l:1});mx=e.clientX/W-.5;my=e.clientY/H-.5;const p=ptrs.get(e.pointerId);
+ if(p){const dx=e.clientX-p.x,dy=e.clientY-p.y;
+  if(ptrs.size===2){const[a,b]=[...ptrs.values()],d0=Math.hypot(a.x-b.x,a.y-b.y);p.x=e.clientX;p.y=e.clientY;zoomAt((a.x+b.x)/2,(a.y+b.y)/2,Math.hypot(a.x-b.x,a.y-b.y)/d0);drag.m=99}
+  else{cam.x-=dx/cam.z;cam.y-=dy/cam.z;vel={x:dx,y:dy};drag.m+=Math.abs(dx)+Math.abs(dy);p.x=e.clientX;p.y=e.clientY}}
+ else{const s=pick(e.clientX,e.clientY);if(s!==hov){hov=s;cv.style.cursor=s?'pointer':'grab';if(s)beep(420+s.ph*90,.1,'sine',.02)}}};
+cv.onpointerup=e=>{ptrs.delete(e.pointerId);cv.style.cursor='grab';if(drag&&drag.m<6){const s=pick(e.clientX,e.clientY);if(s)go(s)}if(!ptrs.size)drag=null};
+cv.onpointercancel=e=>{ptrs.delete(e.pointerId);if(!ptrs.size)drag=null};
+cv.addEventListener('wheel',e=>{e.preventDefault();fl=null;intro();zt=clamp(zt*Math.exp(-e.deltaY*.0015),.1,3.5);za={x:e.clientX,y:e.clientY}},{passive:false});
+function go(s){sel=s;RP.push({x:s.x,y:s.y,t:performance.now()/1000,h:s.c.h});fly(s.x,s.y,Math.max(cam.z,1.3),1200);show(s.d)}
+function show(x){beep(880,.4,'sine',.05);setTimeout(()=>beep(1320,.45,'sine',.03),100);const c=$('card');c.style.setProperty('--h',G[x.g][1]);
+ $('cb').innerHTML=`<h3></h3><div class="dsg"></div><span class="tag g">${G[x.g][0]}</span>${x.t.map(t=>`<span class="tag">${t}</span>`).join('')}<p>${x.d.replace(/</g,'&lt;')}</p>${MORE[x.n]?'<div class="mx"><p>'+MORE[x.n]+'</p></div><button class="sm">See more ▾</button>':''}<a target="_blank" rel="noopener" href="https://store.steampowered.com/search/?term=${encodeURIComponent(x.n)}">Look it up on Steam ↗</a>`;
+ $('cb').querySelector('h3').textContent=x.n;{const o=S.find(q=>q.d===x);$('cb').querySelector('.dsg').textContent=(o.g.length===1?o.g+' · ':'')+G[x.g][0]+' · '+o.c.n+' stars'}const nb=document.createElement('div');nb.className='nb';S.filter(q=>q.c.k===x.g&&q.d!==x).sort(()=>R()-.5).slice(0,4).forEach(q=>{const b=document.createElement('button');b.textContent=q.d.n;b.onclick=()=>go(q);nb.append(b)});if(nb.children.length)$('cb').append(nb);const sb=$('cb').querySelector('.sm');if(sb)sb.onclick=()=>{const o=$('cb').querySelector('.mx').classList.toggle('open');sb.textContent=o?'See less ▴':'See more ▾';beep(o?660:520,.1)};c.classList.add('show')}
+$('x').onclick=()=>{$('card').classList.remove('show');sel=null};
+const chips=$('chips');
+[['*','All',230],...keys.map(k=>[k,G[k][0],G[k][1]])].forEach(([k,l,h])=>{const c=document.createElement('button');c.className='chip glass'+(k==='*'?' on':'');c.style.setProperty('--h',h);c.textContent=l;
+ c.onclick=()=>{F=k;chips.querySelectorAll('.chip').forEach(e=>e.classList.toggle('on',e===c));apply();intro();beep(660,.1,'triangle');
+  if(k==='*')fly(0,0,fit());else{const cl=CL.find(q=>q.k===k);fly(cl.cx,cl.cy,Math.min(W,H)*.8/(2*(55*Math.sqrt(cl.n)+120)))}};chips.append(c)});
+$('q').oninput=e=>{Q=e.target.value.trim().toLowerCase();apply()};
+$('q').onkeydown=e=>{if(e.key==='Enter'){const s=S.find(s=>s.hit);if(s){go(s);e.target.blur()}}};
+$('rnd').onclick=()=>{intro();const v=S.filter(s=>!s.dim);if(!v.length)return;const s=v[R()*v.length|0];
+ SH.push({x:W*.1,y:H*.15,vx:1500,vy:700,l:1.4});[1200,900,600].forEach((f,i)=>setTimeout(()=>beep(f,.15,'triangle',.03),i*70));setTimeout(()=>go(s),350)};
+$('snd').onclick=e=>{on=!on;pad();e.target.textContent=on?'🔊':'🔇';beep(700)};
+addEventListener('keydown',e=>{if(e.target.id==='q'){if(e.key==='Escape')e.target.blur();return}const k=e.key;if(k==='/'){e.preventDefault();$('q').focus()}else if(k==='r'||k==='R')$('rnd').click();else if(k==='Escape')$('x').click();else if(k==='+'||k==='='||k==='-'){zt=clamp(zt*(k==='-'?.77:1.3),.1,3.5);za={x:W/2,y:H/2};intro()}else{const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[k];if(d){vel.x-=d[0]*7;vel.y-=d[1]*7;intro()}}});
+apply();fly(0,0,fit(),3800);setTimeout(intro,4200);requestAnimationFrame(fr);
+</script></body></html>
